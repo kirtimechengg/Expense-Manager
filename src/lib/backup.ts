@@ -14,12 +14,14 @@ export interface WalletBackup {
   format: number;
   exportedAt: string;
   categories: Category[];
-  transactions: Transaction[];
+  /** Receipt photos are not included in backups. */
+  transactions: Omit<Transaction, 'receiptPath' | 'receiptLocal'>[];
   budgets: Budget[];
 }
 
 export function buildBackup(categories: Category[], transactions: Transaction[], budgets: Budget[]): WalletBackup {
-  return { app: BACKUP_APP, format: BACKUP_FORMAT, exportedAt: new Date().toISOString(), categories, transactions, budgets };
+  const txns = transactions.map(({ receiptPath, receiptLocal, ...t }) => t);
+  return { app: BACKUP_APP, format: BACKUP_FORMAT, exportedAt: new Date().toISOString(), categories, transactions: txns, budgets };
 }
 
 const TYPES: TxnType[] = ['expense', 'income', 'investment'];

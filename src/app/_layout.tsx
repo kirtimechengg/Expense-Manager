@@ -65,6 +65,7 @@ function AppNavigator() {
         <Stack.Screen name="data" options={{ title: 'Export & backup', headerBackTitle: 'Settings' }} />
         <Stack.Screen name="sync" options={{ title: 'Family sync', headerBackTitle: 'Settings' }} />
         <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
+        <Stack.Screen name="receipt" options={{ presentation: 'fullScreenModal', headerShown: false, animation: 'fade' }} />
       </Stack>
       </AppLock>
     </ThemeProvider>

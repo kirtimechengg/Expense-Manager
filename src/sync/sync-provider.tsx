@@ -11,7 +11,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState } from 'react-native';
 
 import { useData } from '@/state/data';
-import { lastSyncedAt, pendingChanges, resetSyncState, syncHousehold } from './engine';
+import { fetchReceipt, lastSyncedAt, pendingChanges, resetSyncState, syncHousehold } from './engine';
 import { onLocalChange } from './signals';
 import { supabase } from './supabase';
 
@@ -51,6 +51,8 @@ interface SyncState {
   listMembers: () => Promise<Member[]>;
   removeMember: (userId: string) => Promise<void>;
   syncNow: () => Promise<void>;
+  /** Downloads a receipt photo shared by a family member. Returns its localRef. */
+  getReceipt: (txnId: string, receiptPath: string) => Promise<string>;
 }
 
 const SyncContext = createContext<SyncState | null>(null);
@@ -59,6 +61,7 @@ const SyncContext = createContext<SyncState | null>(null);
 function friendly(e: unknown): Error {
   const msg = (e as { message?: string })?.message ?? String(e);
   if (/network request failed|failed to fetch|fetch failed/i.test(msg)) return new Error('No internet connection. Try again when you are online.');
+  if (/receipt_path/i.test(msg)) return new Error('The cloud database needs an update: run supabase/migrations/0002_receipts.sql in the Supabase SQL Editor.');
   if (/rate limit/i.test(msg)) return new Error('Too many emails were sent. Please wait a while and try again.');
   if (/expired|invalid/i.test(msg) && /otp|token/i.test(msg)) return new Error('That code is wrong or has expired. Request a new one.');
   return new Error(msg);
@@ -230,7 +233,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (error) throw friendly(error);
     },
     syncNow: runSync,
-  }), [session, authReady, household, householdLoading, status, db, loadHousehold, householdId, runSync]);
+    getReceipt: async (txnId, receiptPath) => {
+      if (!householdId) throw new Error('This photo is in the cloud. Sign in to Family sync to see it.');
+      try {
+        const ref = await fetchReceipt(db, supabase, householdId, txnId, receiptPath);
+        await reload();
+        return ref;
+      } catch (e) {
+        throw friendly(e);
+      }
+    },
+  }), [session, authReady, household, householdLoading, status, db, loadHousehold, householdId, runSync, reload]);
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 }

@@ -4,13 +4,14 @@
  *   /category?id=abc         → edit existing
  */
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/text';
 import { Button, CategoryIcon, Segmented, tap, type IconName } from '@/components/ui';
+import { closeScreen } from '@/lib/nav';
 import { confirm } from '@/lib/confirm';
 import { CATEGORY_ICONS } from '@/lib/defaults';
 import type { TxnType } from '@/lib/types';
@@ -37,7 +38,7 @@ export default function CategorySheet() {
   async function onSave() {
     if (!canSave) return;
     await saveCategory({ id: existing?.id, name: trimmed, kind, icon, color });
-    router.back();
+    closeScreen();
   }
 
   function onDelete() {
@@ -47,14 +48,14 @@ export default function CategorySheet() {
       : 'This category is not used by any transaction.';
     confirm('Delete category?', msg, 'Delete', async () => {
       await removeCategory(existing.id);
-      router.back();
+      closeScreen();
     });
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
       <View style={[styles.topBar, { paddingTop: Platform.OS === 'android' ? insets.top + 8 : 16 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Pressable onPress={() => closeScreen()} hitSlop={10}>
           <AppText tone="primary" variant="bodyStrong">Cancel</AppText>
         </Pressable>
         <AppText variant="heading">{existing ? 'Edit category' : 'New category'}</AppText>

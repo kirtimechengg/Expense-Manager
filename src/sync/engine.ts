@@ -14,6 +14,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { downloadReceipt, receiptBytes, receiptExists } from '@/lib/receipts';
+
 const PAGE = 1000;
 const PUSH_CHUNK = 500;
 
@@ -21,6 +23,7 @@ export interface SyncStats {
   pulled: number;
   pushed: number;
   merged: number;
+  receiptsFailed: number;
 }
 
 // ---------- small sync_state helpers ----------
@@ -87,15 +90,21 @@ const TABLES: TableSpec[] = [
     toRemote: (r, hid) => ({
       household_id: hid, id: r.id, type: r.type, amount: r.amount, category_id: r.category_id, date: r.date,
       note: r.note, created_at: safeIso(r.created_at), updated_at: safeIso(r.updated_at), deleted: !!r.deleted,
+      receipt_path: r.receipt_path ?? '',
     }),
     toLocal: (r) => [
-      String(r.id), String(r.type), Number(r.amount), String(r.category_id), String(r.date), String(r.note ?? ''),
-      iso(String(r.created_at)), iso(String(r.updated_at)), r.deleted ? 1 : 0,
+      String(r.id), String(r.type), Number(r.amount), String(r.category_id), String(r.date).slice(0, 10), String(r.note ?? ''),
+      iso(String(r.created_at)), iso(String(r.updated_at)), r.deleted ? 1 : 0, String(r.receipt_path ?? ''),
     ],
-    upsertSql: `INSERT INTO transactions (id, type, amount, category_id, date, note, created_at, updated_at, deleted, synced)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+    // A photo that came from the server counts as uploaded. If the photo changed, forget the old local copy
+    // (the new one is downloaded when someone opens it).
+    upsertSql: `INSERT INTO transactions (id, type, amount, category_id, date, note, created_at, updated_at, deleted, receipt_path, receipt_uploaded, synced)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1)
       ON CONFLICT (id) DO UPDATE SET type = excluded.type, amount = excluded.amount, category_id = excluded.category_id,
-        date = excluded.date, note = excluded.note, updated_at = excluded.updated_at, deleted = excluded.deleted, synced = 1
+        date = excluded.date, note = excluded.note, updated_at = excluded.updated_at, deleted = excluded.deleted,
+        receipt_local = CASE WHEN excluded.receipt_path = transactions.receipt_path THEN transactions.receipt_local ELSE NULL END,
+        receipt_uploaded = CASE WHEN excluded.receipt_path = transactions.receipt_path THEN transactions.receipt_uploaded ELSE 1 END,
+        receipt_path = excluded.receipt_path, synced = 1
       WHERE transactions.synced = 1 OR excluded.updated_at >= transactions.updated_at`,
   },
   {
@@ -200,6 +209,47 @@ async function pushTable(db: SQLiteDatabase, client: SupabaseClient, hid: string
   return rows.length;
 }
 
+// ---------- receipt photos ----------
+
+export const RECEIPT_BUCKET = 'receipts';
+
+/** Uploads photos that are on this phone but not yet in the cloud. One failing photo doesn't stop the sync. */
+async function uploadReceipts(db: SQLiteDatabase, client: SupabaseClient, hid: string): Promise<number> {
+  const rows = await db.getAllAsync<{ id: string; receipt_path: string; receipt_local: string | null }>(
+    `SELECT id, receipt_path, receipt_local FROM transactions
+      WHERE deleted = 0 AND receipt_path != '' AND receipt_uploaded = 0 AND receipt_local IS NOT NULL`,
+  );
+  let failed = 0;
+  for (const r of rows) {
+    try {
+      if (!receiptExists(r.receipt_local)) continue;
+      const bytes = await receiptBytes(r.receipt_local!);
+      const body = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+      const { error } = await client.storage
+        .from(RECEIPT_BUCKET)
+        .upload(`${hid}/${r.receipt_path}`, body, { contentType: 'image/jpeg', upsert: true });
+      if (error) throw error;
+      await db.runAsync('UPDATE transactions SET receipt_uploaded = 1 WHERE id = ? AND receipt_path = ?', r.id, r.receipt_path);
+    } catch (e) {
+      failed++;
+      console.warn('Receipt upload failed', r.receipt_path, e);
+    }
+  }
+  return failed;
+}
+
+/** Fetches a family member's photo the first time it's opened on this phone. Returns its localRef. */
+export async function fetchReceipt(
+  db: SQLiteDatabase, client: SupabaseClient, hid: string, txnId: string, receiptPath: string,
+): Promise<string> {
+  const { data, error } = await client.storage.from(RECEIPT_BUCKET).createSignedUrl(`${hid}/${receiptPath}`, 120);
+  if (error || !data?.signedUrl) throw new Error(error?.message ?? 'Photo not found');
+  const fileName = receiptPath.split('/').pop() || `${txnId}.jpg`;
+  const localRef = await downloadReceipt(data.signedUrl, fileName);
+  await db.runAsync('UPDATE transactions SET receipt_local = ? WHERE id = ? AND receipt_path = ?', localRef, txnId, receiptPath);
+  return localRef;
+}
+
 // ---------- public API ----------
 
 export async function syncHousehold(db: SQLiteDatabase, client: SupabaseClient, householdId: string): Promise<SyncStats> {
@@ -216,11 +266,14 @@ export async function syncHousehold(db: SQLiteDatabase, client: SupabaseClient, 
     await setState(db, mergedKey, new Date().toISOString());
   }
 
+  // Photos first, so a family member never sees a transaction whose photo isn't there yet.
+  const receiptsFailed = await uploadReceipts(db, client, householdId);
+
   let pushed = 0;
   for (const t of TABLES) pushed += await pushTable(db, client, householdId, t);
 
   await setState(db, `lastSync:${householdId}`, new Date().toISOString());
-  return { pulled, pushed, merged };
+  return { pulled, pushed, merged, receiptsFailed };
 }
 
 export async function pendingChanges(db: SQLiteDatabase): Promise<number> {
@@ -241,7 +294,7 @@ export async function resetSyncState(db: SQLiteDatabase) {
   await db.execAsync(`
     DELETE FROM sync_state;
     UPDATE categories SET synced = 0;
-    UPDATE transactions SET synced = 0;
+    UPDATE transactions SET synced = 0, receipt_uploaded = 0;
     UPDATE budgets SET synced = 0;
   `);
 }

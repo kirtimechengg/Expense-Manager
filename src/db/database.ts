@@ -10,7 +10,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { DEFAULT_CATEGORIES } from '@/lib/defaults';
 
 export const DATABASE_NAME = 'wallet.db';
-const LATEST_VERSION = 2;
+const LATEST_VERSION = 3;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA journal_mode = WAL;');
@@ -78,7 +78,15 @@ export async function migrateDatabase(db: SQLiteDatabase) {
         CREATE TABLE sync_state (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
       `);
     }
-    // Future schema changes go here:  if (version < 3) { ... }
+    if (version < 3) {
+      // Version 3 — receipt photos. receipt_path is synced; receipt_local is where the photo is on THIS phone.
+      await db.execAsync(`
+        ALTER TABLE transactions ADD COLUMN receipt_path TEXT NOT NULL DEFAULT '';
+        ALTER TABLE transactions ADD COLUMN receipt_local TEXT;
+        ALTER TABLE transactions ADD COLUMN receipt_uploaded INTEGER NOT NULL DEFAULT 0;
+      `);
+    }
+    // Future schema changes go here:  if (version < 4) { ... }
     await db.execAsync(`PRAGMA user_version = ${LATEST_VERSION}`);
   });
 }

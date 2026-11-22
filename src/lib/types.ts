@@ -23,6 +23,10 @@ export interface Transaction {
   note: string;
   createdAt: string;
   updatedAt: string;
+  /** Cloud name of the receipt photo ("" = none). */
+  receiptPath: string;
+  /** Where the photo is on this device (null = not downloaded yet). */
+  receiptLocal: string | null;
 }
 
 export interface Budget {

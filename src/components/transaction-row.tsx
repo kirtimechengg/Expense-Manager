@@ -1,16 +1,18 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { friendlyDate } from '@/lib/dates';
 import type { Transaction } from '@/lib/types';
 import { useData } from '@/state/data';
-import { space } from '@/theme';
+import { space, useTheme } from '@/theme';
 import { AppText } from './text';
 import { Amount, CategoryIcon, tap } from './ui';
 
 /** One transaction in a list. Tap to edit. */
 export function TransactionRow({ txn, showDate = false }: { txn: Transaction; showDate?: boolean }) {
   const { categoryById } = useData();
+  const { colors } = useTheme();
   const cat = categoryById.get(txn.categoryId);
   const title = txn.note || cat?.name || 'Uncategorised';
   const sub = [txn.note ? cat?.name : null, showDate ? friendlyDate(txn.date) : null].filter(Boolean).join(' · ');
@@ -23,7 +25,12 @@ export function TransactionRow({ txn, showDate = false }: { txn: Transaction; sh
       <CategoryIcon icon={cat?.icon ?? 'help'} color={cat?.color ?? '#94A3B8'} />
       <View style={{ flex: 1 }}>
         <AppText variant="bodyStrong" numberOfLines={1}>{title}</AppText>
-        {sub ? <AppText variant="caption" tone="muted" numberOfLines={1}>{sub}</AppText> : null}
+        {sub || txn.receiptPath ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            {txn.receiptPath ? <Ionicons name="attach" size={14} color={colors.textMuted} accessibilityLabel="Has receipt" /> : null}
+            {sub ? <AppText variant="caption" tone="muted" numberOfLines={1} style={{ flexShrink: 1 }}>{sub}</AppText> : null}
+          </View>
+        ) : null}
       </View>
       <View style={{ flexDirection: 'row' }}>
         <AppText variant="bodyStrong" tone={txn.type === 'income' ? 'income' : txn.type === 'investment' ? 'invest' : 'default'}>

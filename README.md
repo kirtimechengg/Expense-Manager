@@ -47,6 +47,13 @@ with the phone passcode as a fallback (the app never stores a PIN). Choose wheth
 preview is covered so amounts aren't visible. If you remove your phone's screen lock, the app unlocks
 instead of locking you out.
 
+### Receipt photos
+In the Add/Edit transaction sheet, use **Take photo** or **Choose photo**. Photos are shrunk to about
+1600 px (usually 150–400 KB) and kept in the app's private storage. A 📎 in the list marks transactions with
+a photo. Tap the photo to view it full screen and share it. With Family sync on, photos upload to a
+private Supabase Storage bucket that only your household can read. Other members download a photo the first
+time they open it. Photos are **not** included in JSON backups or Excel exports.
+
 ### Family sync (Supabase)
 Settings → **Family sync**: sign in with your email (magic link or 6-digit code), then **create** a household
 or **join** one with an invite code. Everything syncs automatically: on opening the app, every 30 s while it's open,
@@ -57,6 +64,8 @@ If two phones edit the same item, the most recent edit wins.
 
 1. **Create the tables:** SQL Editor → New query → paste all of
    [`supabase/migrations/0001_wallet_sync.sql`](supabase/migrations/0001_wallet_sync.sql) → **Run**.
+   Then do the same with [`supabase/migrations/0002_receipts.sql`](supabase/migrations/0002_receipts.sql)
+   (receipt photos). Each file is safe to run again.
 2. **Allow the app's sign-in links:** Authentication → URL Configuration → **Redirect URLs** → add:
    - `wallet://**` (the installed app)
    - `exp://**` (testing in Expo Go)
@@ -136,7 +145,7 @@ npx eslint src
 - [x] **Phase 5:** Export PDF / Excel, JSON backup & restore (including import of the old Gemini backup), Excel templates & import
 - [x] **Phase 6:** App lock (Face ID / fingerprint)
 - [x] **Phase 7:** Supabase login + family sharing (secure household invites, offline sync)
-- [ ] **Phase 8:** Receipt photo attachments (AI scanning is not planned, since it would need a paid API key)
+- [x] **Phase 8:** Receipt photo attachments (AI scanning is not planned, since it would need a paid API key)
 - [ ] **Phase 9:** App icon & splash, EAS Build → TestFlight / Play Store
 
 ## Publishing (later)

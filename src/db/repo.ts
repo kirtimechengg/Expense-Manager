@@ -5,6 +5,7 @@
 import { randomUUID } from 'expo-crypto';
 import type { SQLiteDatabase } from 'expo-sqlite';
 
+import { deleteLocalReceipt, type SavedReceipt } from '@/lib/receipts';
 import type { Budget, Category, Prefs, Transaction, TxnType } from '@/lib/types';
 
 const now = () => new Date().toISOString();
@@ -21,14 +22,14 @@ export async function loadCategories(db: SQLiteDatabase): Promise<Category[]> {
 export async function loadTransactions(db: SQLiteDatabase): Promise<Transaction[]> {
   const rows = await db.getAllAsync<{
     id: string; type: TxnType; amount: number; category_id: string; date: string; note: string;
-    created_at: string; updated_at: string;
+    created_at: string; updated_at: string; receipt_path: string; receipt_local: string | null;
   }>(
-    `SELECT id, type, amount, category_id, date, note, created_at, updated_at
+    `SELECT id, type, amount, category_id, date, note, created_at, updated_at, receipt_path, receipt_local
        FROM transactions WHERE deleted = 0 ORDER BY date DESC, created_at DESC`,
   );
   return rows.map((r) => ({
     id: r.id, type: r.type, amount: r.amount, categoryId: r.category_id, date: r.date, note: r.note,
-    createdAt: r.created_at, updatedAt: r.updated_at,
+    createdAt: r.created_at, updatedAt: r.updated_at, receiptPath: r.receipt_path, receiptLocal: r.receipt_local,
   }));
 }
 
@@ -54,28 +55,47 @@ export async function loadPrefs(db: SQLiteDatabase): Promise<Partial<Prefs>> {
 
 // ---------- Writing ----------
 
-export type TransactionInput = Pick<Transaction, 'type' | 'amount' | 'categoryId' | 'date' | 'note'> & { id?: string };
+export type TransactionInput = Pick<Transaction, 'type' | 'amount' | 'categoryId' | 'date' | 'note'> & {
+  id?: string;
+  /** undefined = keep the current photo · null = remove it · object = new photo */
+  receipt?: SavedReceipt | null;
+};
 
 export async function upsertTransaction(db: SQLiteDatabase, input: TransactionInput): Promise<string> {
   const ts = now();
+  const id = input.id ?? randomUUID();
   if (input.id) {
     await db.runAsync(
       `UPDATE transactions SET type = ?, amount = ?, category_id = ?, date = ?, note = ?, updated_at = ?, synced = 0 WHERE id = ?`,
-      input.type, input.amount, input.categoryId, input.date, input.note, ts, input.id,
+      input.type, input.amount, input.categoryId, input.date, input.note, ts, id,
     );
-    return input.id;
+  } else {
+    await db.runAsync(
+      `INSERT INTO transactions (id, type, amount, category_id, date, note, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      id, input.type, input.amount, input.categoryId, input.date, input.note, ts, ts,
+    );
   }
-  const id = randomUUID();
-  await db.runAsync(
-    `INSERT INTO transactions (id, type, amount, category_id, date, note, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    id, input.type, input.amount, input.categoryId, input.date, input.note, ts, ts,
-  );
+  if (input.receipt !== undefined) {
+    const old = await db.getFirstAsync<{ receipt_local: string | null }>('SELECT receipt_local FROM transactions WHERE id = ?', id);
+    if (old?.receipt_local && old.receipt_local !== input.receipt?.localRef) deleteLocalReceipt(old.receipt_local);
+    await db.runAsync(
+      'UPDATE transactions SET receipt_path = ?, receipt_local = ?, receipt_uploaded = 0, updated_at = ?, synced = 0 WHERE id = ?',
+      input.receipt ? `${id}/${input.receipt.fileName}` : '', input.receipt?.localRef ?? null, ts, id,
+    );
+  }
   return id;
 }
 
 export async function deleteTransaction(db: SQLiteDatabase, id: string) {
-  await db.runAsync('UPDATE transactions SET deleted = 1, updated_at = ?, synced = 0 WHERE id = ?', now(), id);
+  const old = await db.getFirstAsync<{ receipt_local: string | null }>('SELECT receipt_local FROM transactions WHERE id = ?', id);
+  deleteLocalReceipt(old?.receipt_local);
+  await db.runAsync('UPDATE transactions SET deleted = 1, receipt_local = NULL, updated_at = ?, synced = 0 WHERE id = ?', now(), id);
+}
+
+/** Remembers where a downloaded photo was saved (doesn't count as an edit). */
+export async function setReceiptLocal(db: SQLiteDatabase, id: string, receiptPath: string, localRef: string) {
+  await db.runAsync('UPDATE transactions SET receipt_local = ? WHERE id = ? AND receipt_path = ?', localRef, id, receiptPath);
 }
 
 export type CategoryInput = Pick<Category, 'name' | 'kind' | 'icon' | 'color'> & { id?: string };

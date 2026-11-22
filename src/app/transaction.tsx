@@ -10,11 +10,14 @@ import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { CalendarGrid } from '@/components/calendar-grid';
+import { ReceiptImage, useReceiptUri } from '@/components/receipt-image';
 import { AppText } from '@/components/text';
 import { Button, CategoryIcon, Chip, Segmented, tap } from '@/components/ui';
-import { confirm } from '@/lib/confirm';
+import { closeScreen } from '@/lib/nav';
+import { confirm, notify } from '@/lib/confirm';
 import { addDays, addMonths, friendlyDate, monthLabel, parseDateKey, todayKey, type MonthRef } from '@/lib/dates';
 import { parseAmount } from '@/lib/money';
+import { deleteLocalReceipt, pickReceiptPhoto, receiptDisplayUri, type SavedReceipt } from '@/lib/receipts';
 import type { TxnType } from '@/lib/types';
 import { useData } from '@/state/data';
 import { usePeriod } from '@/state/period';
@@ -43,6 +46,40 @@ export default function TransactionSheet() {
   });
   const [saving, setSaving] = useState(false);
 
+  // Receipt photo. undefined = unchanged, null = removed, object = newly picked (saved on "Save").
+  const [receipt, setReceipt] = useState<SavedReceipt | null | undefined>(undefined);
+  const existingPhoto = useReceiptUri(existing?.receiptPath ? existing : undefined);
+  const savedRef = useRef(false);
+  const pendingRef = useRef<SavedReceipt | null | undefined>(undefined);
+  useEffect(() => {
+    pendingRef.current = receipt;
+  }, [receipt]);
+  // A photo picked but never saved (sheet cancelled) is deleted again.
+  useEffect(() => () => {
+    if (!savedRef.current && pendingRef.current) deleteLocalReceipt(pendingRef.current.localRef);
+  }, []);
+
+  async function addPhoto(source: 'camera' | 'library') {
+    try {
+      const picked = await pickReceiptPhoto(source);
+      if (!picked) return;
+      if (receipt) deleteLocalReceipt(receipt.localRef); // replacing a photo picked a moment ago
+      setReceipt(picked);
+    } catch (e) {
+      notify('Could not add photo', (e as Error).message);
+    }
+  }
+
+  function removePhoto() {
+    if (receipt) deleteLocalReceipt(receipt.localRef);
+    setReceipt(existing?.receiptPath ? null : undefined);
+  }
+
+  const photo =
+    receipt ? { uri: receiptDisplayUri(receipt.localRef), loading: false, error: null }
+      : receipt === null || !existing?.receiptPath ? null
+        : existingPhoto;
+
   // When the user creates a category via "New", select it automatically on return.
   const knownCategoryIds = useRef(new Set(categories.map((c) => c.id)));
   useEffect(() => {
@@ -64,8 +101,9 @@ export default function TransactionSheet() {
     if (!canSave || amount === null) return;
     setSaving(true);
     try {
-      await saveTransaction({ id: existing?.id, type, amount, categoryId, date, note: note.trim() });
-      router.back();
+      await saveTransaction({ id: existing?.id, type, amount, categoryId, date, note: note.trim(), receipt });
+      savedRef.current = true;
+      closeScreen();
     } finally {
       setSaving(false);
     }
@@ -75,7 +113,7 @@ export default function TransactionSheet() {
     if (!existing) return;
     confirm('Delete transaction?', 'This cannot be undone.', 'Delete', async () => {
       await removeTransaction(existing.id);
-      router.back();
+      closeScreen();
     });
   }
 
@@ -83,7 +121,7 @@ export default function TransactionSheet() {
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: Platform.OS === 'android' ? insets.top + 8 : 16 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Pressable onPress={() => closeScreen()} hitSlop={10}>
           <AppText tone="primary" variant="bodyStrong">Cancel</AppText>
         </Pressable>
         <AppText variant="heading">{existing ? 'Edit transaction' : 'New transaction'}</AppText>
@@ -198,6 +236,32 @@ export default function TransactionSheet() {
             onSubmitEditing={onSave}
           />
         </View>
+
+        {/* Receipt photo */}
+        <View style={{ gap: space.md }}>
+          <AppText variant="label" tone="muted">Receipt</AppText>
+          {photo ? (
+            <View style={styles.photoRow}>
+              <Pressable
+                accessibilityLabel="View receipt"
+                disabled={!existing || receipt !== undefined}
+                onPress={() => existing && router.push({ pathname: '/receipt', params: { id: existing.id } })}>
+                <ReceiptImage uri={photo.uri} loading={photo.loading} error={photo.error} style={styles.thumb} />
+              </Pressable>
+              <View style={{ flex: 1, gap: space.sm }}>
+                <Button label="Replace" icon="camera-outline" variant="secondary" onPress={() => addPhoto(Platform.OS === 'web' ? 'library' : 'camera')} />
+                <Button label="Remove" icon="trash-outline" variant="danger" onPress={removePhoto} />
+              </View>
+            </View>
+          ) : (
+            <View style={styles.photoRow}>
+              {Platform.OS !== 'web' ? (
+                <Button label="Take photo" icon="camera-outline" variant="secondary" onPress={() => addPhoto('camera')} style={{ flex: 1 }} />
+              ) : null}
+              <Button label="Choose photo" icon="images-outline" variant="secondary" onPress={() => addPhoto('library')} style={{ flex: 1 }} />
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       <View style={{ padding: space.lg, paddingBottom: Math.max(insets.bottom, space.lg) }}>
@@ -221,5 +285,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: space.sm, flexWrap: 'wrap' },
   calendar: { borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, padding: space.md, gap: space.sm },
   calHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: space.sm, marginBottom: 4 },
+  photoRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
+  thumb: { width: 110, height: 140, borderRadius: radius.md },
   noteInput: { borderWidth: StyleSheet.hairlineWidth, borderRadius: radius.md, paddingHorizontal: space.lg, height: 50, fontSize: 15 },
 });
