@@ -1,5 +1,5 @@
 /**
- * SETTINGS — appearance, privacy, budgets, categories, and (coming soon) backup & sync.
+ * SETTINGS — appearance, privacy, budgets, categories, export & backup, (coming soon) app lock & sync.
  */
 import { router } from 'expo-router';
 import { Alert, Platform, Switch, View } from 'react-native';
@@ -60,10 +60,8 @@ export default function SettingsScreen() {
       </Group>
 
       <Group title="Data">
-        <ListRow icon="document-text" iconColor="#EF4444" title="Export PDF report" onPress={() => comingSoon('PDF export')} />
-        <ListRow icon="grid" iconColor="#10B981" title="Export to Excel" onPress={() => comingSoon('Excel export')} />
-        <ListRow icon="cloud-download" iconColor="#F59E0B" title="Backup & restore (JSON)" onPress={() => comingSoon('Backup & restore')} />
-        <ListRow icon="cloud-upload" iconColor="#6366F1" title="Import from Excel" onPress={() => comingSoon('Excel import')} last />
+        <ListRow icon="document-text" iconColor="#EF4444" title="Reports & export" subtitle="PDF report, Excel" onPress={() => router.push('/data')} />
+        <ListRow icon="cloud-download" iconColor="#F59E0B" title="Backup, restore & import" subtitle="JSON backup, Excel import, old Budget App files" onPress={() => router.push('/data')} last />
       </Group>
 
       <Group title="Security & sync">

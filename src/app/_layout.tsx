@@ -57,6 +57,7 @@ function AppNavigator() {
         <Stack.Screen name="category" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="budgets" options={{ title: 'Monthly budgets', headerBackTitle: 'Settings' }} />
         <Stack.Screen name="categories" options={{ title: 'Categories', headerBackTitle: 'Settings' }} />
+        <Stack.Screen name="data" options={{ title: 'Export & backup', headerBackTitle: 'Settings' }} />
       </Stack>
     </ThemeProvider>
   );

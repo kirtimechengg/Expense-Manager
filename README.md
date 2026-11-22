@@ -34,10 +34,23 @@ You can also run it in a browser with `npx expo start --web` (press `w`). The ta
 | **Insights** | Calendar heat-map of daily spending · yearly cash flow (chart + month table with budget) · category × month table |
 | **Net Worth** | All-time net worth, income / investments / expenses / cash, investment portfolio split |
 | **Settings** | Light / Dark / System theme, privacy mode (hides amounts), monthly budgets (with remarks + copy from last month), categories (icons & colours) |
+| **Settings → Export & backup** | PDF report (month or year) · Excel export · JSON backup & restore · Excel import for transactions and budgets (with templates) |
 
 The **+** button opens the Add Transaction sheet. Tap any transaction to edit or delete it.
 
-All data is stored **on the device** in SQLite. Nothing leaves the phone yet.
+All data is stored **on the device** in SQLite. Nothing leaves the phone unless you export or back it up.
+
+### Moving your data from the old Gemini Budget App
+1. In the old app: **Download menu → Backup Data (JSON)**.
+2. Get that file onto your phone (e.g. Google Drive / iCloud / WhatsApp to yourself).
+3. In Wallet: **Settings → Backup, restore & import → Restore** and pick the file.
+
+Categories are matched by name. The old app guessed investments from names (MF, PF, PPF, NPS, "equity", "deposit"…); those become **Investment** categories.
+Old income entries go to Income categories. Receipt photos from the old app are not imported.
+Running the same import twice is safe, because duplicates are skipped.
+
+Old Excel sheets made from the old app's templates (columns `Date, Type, Category, Amount, Description` and
+`Year, Month, Category, Amount, Remarks`) can be imported too.
 
 ## Project map
 
@@ -55,9 +68,11 @@ src/
     category.tsx            Add / edit category sheet
     categories.tsx          Category list
     budgets.tsx             Monthly budgets
+    data.tsx                Export & backup
   components/             ← reusable UI (cards, charts, calendar, buttons…)
   db/                     ← SQLite tables (database.ts), queries (repo.ts), demo data
-  lib/                    ← plain logic: money formatting, dates, calculations (stats.ts)
+  lib/                    ← plain logic: money, dates, calculations (stats.ts),
+                            backup.ts (JSON), excel.ts, report.ts (PDF), files.ts (share / pick files)
   state/                  ← shared app state (data.tsx, period.tsx)
   theme/                  ← colours for light & dark mode
 ```
@@ -83,7 +98,7 @@ npx eslint src
 - [x] **Phase 2:** SQLite data layer; add / edit / delete transactions; month switcher
 - [x] **Phase 3:** Home, Activity, Insights (calendar, cash flow, category table), Net Worth
 - [x] **Phase 4:** Budgets & categories management
-- [ ] **Phase 5:** Export PDF / Excel, JSON backup & restore (including import of the old Gemini backup), Excel templates & import
+- [x] **Phase 5:** Export PDF / Excel, JSON backup & restore (including import of the old Gemini backup), Excel templates & import
 - [ ] **Phase 6:** App lock (Face ID / fingerprint)
 - [ ] **Phase 7:** Supabase login + family sharing (secure household invites, offline sync)
 - [ ] **Phase 8:** Receipt photo attachments (AI scanning is not planned, since it would need a paid API key)

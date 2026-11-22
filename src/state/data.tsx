@@ -7,7 +7,9 @@ import { useSQLiteContext } from 'expo-sqlite';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
 import { loadDemoData } from '@/db/demo';
+import { applyImport } from '@/db/import';
 import * as repo from '@/db/repo';
+import type { ImportPlan, ImportResult } from '@/lib/import-plan';
 import { budgetKey } from '@/lib/stats';
 import type { Budget, Category, Prefs, Transaction } from '@/lib/types';
 
@@ -27,6 +29,8 @@ interface DataState {
   saveBudget: (b: Budget) => Promise<void>;
   copyBudgets: (fromMonth: string, toMonth: string) => Promise<number>;
   setPref: <K extends keyof Prefs>(key: K, value: Prefs[K]) => Promise<void>;
+  /** Adds/merges data from a backup or Excel file. Never deletes anything. */
+  importPlan: (plan: ImportPlan) => Promise<ImportResult>;
   /** Development helper: adds 6 months of sample data. */
   loadDemo: () => Promise<void>;
 }
@@ -111,6 +115,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
       setPref: async (key, v) => {
         setPrefs((p) => ({ ...p, [key]: v })); // instant UI feedback
         await repo.setPref(db, key, v);
+      },
+      importPlan: async (plan) => {
+        const result = await applyImport(db, plan);
+        await refresh();
+        return result;
       },
       loadDemo: async () => {
         await loadDemoData(db, categories);
