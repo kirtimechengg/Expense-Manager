@@ -8,19 +8,27 @@
     "scheme": "wallet",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.kirti.wallet",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0B1020",
+        "backgroundColor": "#6D5DF6",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.kirti.wallet"
+      "package": "com.kirti.wallet",
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "output": "single",
@@ -39,9 +47,14 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0B1020",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 120,
+          "resizeMode": "contain",
+          "backgroundColor": "#6D5DF6",
+          "dark": {
+            "image": "./assets/images/splash-icon.png",
+            "backgroundColor": "#1E1B4B"
+          }
         }
       ],
       "expo-sqlite",
@@ -63,6 +76,7 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "backgroundColor": "#0B1020"
   }
 }

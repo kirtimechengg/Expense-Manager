@@ -146,14 +146,23 @@ npx eslint src
 - [x] **Phase 6:** App lock (Face ID / fingerprint)
 - [x] **Phase 7:** Supabase login + family sharing (secure household invites, offline sync)
 - [x] **Phase 8:** Receipt photo attachments (AI scanning is not planned, since it would need a paid API key)
-- [ ] **Phase 9:** App icon & splash, EAS Build → TestFlight / Play Store
+- [x] **Phase 9:** App icon & splash, EAS Build → TestFlight / Play Store
 
-## Publishing (later)
+## Publishing
 
-Builds are made in the cloud with **EAS** (no Mac needed for iOS):
+App icon, splash screen and EAS build profiles are set up. Follow **[docs/RELEASE.md](docs/RELEASE.md)**:
 
 ```bash
-npx eas-cli@latest build --platform all
+npx eas-cli@latest login
+```
+```bash
+npx eas-cli@latest init
+```
+```bash
+npx eas-cli@latest build --platform android --profile preview
 ```
 
-Publishing needs an Apple Developer account ($99/year) and a Google Play Console account ($25 one-time).
+The last command gives you an installable Android APK link. iPhone builds need the Apple Developer Program ($99/year);
+Google Play needs a one-time $25 account. A privacy-policy draft for the stores is in [docs/PRIVACY.md](docs/PRIVACY.md).
+
+The icon source is `assets/icon-src/icon.svg`; the PNGs in `assets/images/` were rendered from it.
