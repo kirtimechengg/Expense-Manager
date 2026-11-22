@@ -2,12 +2,14 @@
  * SETTINGS — appearance, privacy, budgets, categories, export & backup, (coming soon) app lock & sync.
  */
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Alert, Platform, Switch, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { AppText } from '@/components/text';
 import { Card, ListRow, Segmented } from '@/components/ui';
-import { confirm } from '@/lib/confirm';
+import { authenticate, getLockSupport, type LockSupport } from '@/lib/biometrics';
+import { confirm, notify } from '@/lib/confirm';
 import type { ThemePref } from '@/lib/types';
 import { useData } from '@/state/data';
 import { usePeriod } from '@/state/period';
@@ -65,7 +67,7 @@ export default function SettingsScreen() {
       </Group>
 
       <Group title="Security & sync">
-        <ListRow icon="finger-print" iconColor="#14B8A6" title="App lock" subtitle="Face ID / fingerprint" onPress={() => comingSoon('App lock')} />
+        <AppLockSettings />
         <ListRow icon="people" iconColor="#3B82F6" title="Family sync" subtitle="Share with your household (Supabase)" onPress={() => comingSoon('Family sync')} last />
       </Group>
 
@@ -95,5 +97,71 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
       <AppText variant="label" tone="muted" style={{ marginLeft: space.xs }}>{title}</AppText>
       <Card padded={false}>{children}</Card>
     </View>
+  );
+}
+
+const LOCK_AFTER = [
+  { value: '0', label: 'Immediately' },
+  { value: '60', label: '1 min' },
+  { value: '300', label: '5 min' },
+] as const;
+
+/** App lock switch + "lock after" choice. Turning it on or off asks for Face ID / fingerprint first. */
+function AppLockSettings() {
+  const { colors } = useTheme();
+  const { prefs, setPref } = useData();
+  const [support, setSupport] = useState<LockSupport | null>(null);
+
+  useEffect(() => {
+    getLockSupport().then(setSupport).catch(() => setSupport(null));
+  }, []);
+
+  async function toggle(on: boolean) {
+    const s = await getLockSupport();
+    setSupport(s);
+    if (on && !s.available) {
+      notify('App lock unavailable', s.reason ?? 'This device does not support app lock.');
+      return;
+    }
+    const res = await authenticate(on ? 'Turn on app lock' : 'Turn off app lock');
+    if (res.ok) await setPref('lockEnabled', on);
+    else if (res.error !== 'user_cancel' && res.error !== 'system_cancel' && res.error !== 'app_cancel') {
+      notify('Could not verify', 'App lock was not changed.');
+    }
+  }
+
+  const subtitle = !support
+    ? 'Checking…'
+    : support.available
+      ? `Unlock with ${support.label}`
+      : (support.reason ?? 'Not available');
+
+  return (
+    <>
+      <ListRow
+        icon={support?.icon === 'scan' ? 'scan' : 'finger-print'}
+        iconColor="#14B8A6"
+        title="App lock"
+        subtitle={subtitle}
+        right={
+          <Switch
+            value={prefs.lockEnabled}
+            onValueChange={toggle}
+            disabled={!support || (!support.available && !prefs.lockEnabled)}
+            trackColor={{ true: colors.primary, false: colors.border }}
+          />
+        }
+      />
+      {prefs.lockEnabled ? (
+        <View style={{ paddingHorizontal: space.lg, paddingBottom: space.md, gap: space.sm }}>
+          <AppText variant="caption" tone="muted">Lock again after leaving the app</AppText>
+          <Segmented<(typeof LOCK_AFTER)[number]['value']>
+            value={String(prefs.lockAfterSeconds) as (typeof LOCK_AFTER)[number]['value']}
+            onChange={(v) => setPref('lockAfterSeconds', Number(v))}
+            options={[...LOCK_AFTER]}
+          />
+        </View>
+      ) : null}
+    </>
   );
 }

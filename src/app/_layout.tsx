@@ -9,6 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Appearance, Platform } from 'react-native';
 
+import { AppLock } from '@/components/app-lock';
 import { DATABASE_NAME, migrateDatabase } from '@/db/database';
 import { DataProvider, useData } from '@/state/data';
 import { PeriodProvider } from '@/state/period';
@@ -48,6 +49,7 @@ function AppNavigator() {
     <ThemeProvider
       value={{ ...navTheme, colors: { ...navTheme.colors, background: colors.background, card: colors.card, primary: colors.primary, text: colors.text, border: colors.border } }}>
       <StatusBar style={dark ? 'light' : 'dark'} />
+      <AppLock>
       <Stack screenOptions={{ headerShadowVisible: false, headerStyle: { backgroundColor: colors.background }, headerTintColor: colors.primary, headerTitleStyle: { color: colors.text } }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
@@ -59,6 +61,7 @@ function AppNavigator() {
         <Stack.Screen name="categories" options={{ title: 'Categories', headerBackTitle: 'Settings' }} />
         <Stack.Screen name="data" options={{ title: 'Export & backup', headerBackTitle: 'Settings' }} />
       </Stack>
+      </AppLock>
     </ThemeProvider>
   );
 }

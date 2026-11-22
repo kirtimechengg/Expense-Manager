@@ -40,6 +40,13 @@ The **+** button opens the Add Transaction sheet. Tap any transaction to edit or
 
 All data is stored **on the device** in SQLite. Nothing leaves the phone unless you export or back it up.
 
+### App lock
+**Settings → Security & sync → App lock** uses your phone's own Face ID / Touch ID / fingerprint,
+with the phone passcode as a fallback (the app never stores a PIN). Choose whether it locks again
+**immediately**, after **1 min** or after **5 min** in the background. While the lock is on, the app-switcher
+preview is covered so amounts aren't visible. If you remove your phone's screen lock, the app unlocks
+instead of locking you out.
+
 ### Moving your data from the old Gemini Budget App
 1. In the old app: **Download menu → Backup Data (JSON)**.
 2. Get that file onto your phone (e.g. Google Drive / iCloud / WhatsApp to yourself).
@@ -99,7 +106,7 @@ npx eslint src
 - [x] **Phase 3:** Home, Activity, Insights (calendar, cash flow, category table), Net Worth
 - [x] **Phase 4:** Budgets & categories management
 - [x] **Phase 5:** Export PDF / Excel, JSON backup & restore (including import of the old Gemini backup), Excel templates & import
-- [ ] **Phase 6:** App lock (Face ID / fingerprint)
+- [x] **Phase 6:** App lock (Face ID / fingerprint)
 - [ ] **Phase 7:** Supabase login + family sharing (secure household invites, offline sync)
 - [ ] **Phase 8:** Receipt photo attachments (AI scanning is not planned, since it would need a paid API key)
 - [ ] **Phase 9:** App icon & splash, EAS Build → TestFlight / Play Store

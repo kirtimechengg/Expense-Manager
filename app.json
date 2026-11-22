@@ -44,7 +44,13 @@
           "imageWidth": 76
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Wallet uses Face ID to keep your finances private."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

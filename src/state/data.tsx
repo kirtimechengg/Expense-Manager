@@ -13,7 +13,7 @@ import type { ImportPlan, ImportResult } from '@/lib/import-plan';
 import { budgetKey } from '@/lib/stats';
 import type { Budget, Category, Prefs, Transaction } from '@/lib/types';
 
-const DEFAULT_PREFS: Prefs = { privacyMode: false, theme: 'system' };
+const DEFAULT_PREFS: Prefs = { privacyMode: false, theme: 'system', lockEnabled: false, lockAfterSeconds: 0 };
 
 interface DataState {
   ready: boolean;

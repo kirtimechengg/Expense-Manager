@@ -38,4 +38,8 @@ export type ThemePref = 'system' | 'light' | 'dark';
 export interface Prefs {
   privacyMode: boolean;
   theme: ThemePref;
+  /** Ask for Face ID / fingerprint / passcode when opening the app. */
+  lockEnabled: boolean;
+  /** How long the app may stay in the background before it locks again (0 = immediately). */
+  lockAfterSeconds: number;
 }

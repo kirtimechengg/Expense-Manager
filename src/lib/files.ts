@@ -10,6 +10,8 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 
+import { withExternalActivity } from './biometrics';
+
 export const MIME = {
   json: 'application/json',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -54,7 +56,7 @@ export async function saveAndShare(filename: string, content: string, mimeType: 
 
 async function shareFile(uri: string, mimeType: string, title: string) {
   if (!(await Sharing.isAvailableAsync())) throw new Error('Sharing is not available on this device.');
-  await Sharing.shareAsync(uri, { mimeType, UTI: UTI[mimeType], dialogTitle: title });
+  await withExternalActivity(() => Sharing.shareAsync(uri, { mimeType, UTI: UTI[mimeType], dialogTitle: title }));
 }
 
 /** Turns report HTML into a PDF and opens the Share sheet (web: opens the browser's print dialog → "Save as PDF"). */
@@ -94,7 +96,9 @@ export interface PickedFile {
 
 /** Opens the system file picker. Returns null if the user cancels. */
 export async function pickFile(types: string[]): Promise<PickedFile | null> {
-  const res = await DocumentPicker.getDocumentAsync({ type: types, copyToCacheDirectory: true, multiple: false });
+  const res = await withExternalActivity(() =>
+    DocumentPicker.getDocumentAsync({ type: types, copyToCacheDirectory: true, multiple: false }),
+  );
   if (res.canceled || !res.assets?.[0]) return null;
   const asset = res.assets[0];
   if (Platform.OS === 'web' && asset.file) {
