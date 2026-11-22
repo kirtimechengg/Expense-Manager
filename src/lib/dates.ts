@@ -75,3 +75,14 @@ export function greeting(): string {
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
 }
+
+/** "just now", "5 min ago", "3 h ago", or a date. */
+export function timeAgo(isoTime: string): string {
+  const s = Math.max(0, Math.round((Date.now() - new Date(isoTime).getTime()) / 1000));
+  if (s < 45) return 'just now';
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} h ago`;
+  return new Date(isoTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}

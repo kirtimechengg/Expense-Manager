@@ -10,7 +10,7 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { DEFAULT_CATEGORIES } from '@/lib/defaults';
 
 export const DATABASE_NAME = 'wallet.db';
-const LATEST_VERSION = 1;
+const LATEST_VERSION = 2;
 
 export async function migrateDatabase(db: SQLiteDatabase) {
   await db.execAsync('PRAGMA journal_mode = WAL;');
@@ -69,7 +69,16 @@ export async function migrateDatabase(db: SQLiteDatabase) {
         );
       }
     }
-    // Future schema changes go here:  if (version < 2) { ... }
+    if (version < 2) {
+      // Version 2 — cloud sync. `synced = 0` means "changed on this phone, not uploaded yet".
+      await db.execAsync(`
+        ALTER TABLE categories ADD COLUMN synced INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE transactions ADD COLUMN synced INTEGER NOT NULL DEFAULT 0;
+        ALTER TABLE budgets ADD COLUMN synced INTEGER NOT NULL DEFAULT 0;
+        CREATE TABLE sync_state (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);
+      `);
+    }
+    // Future schema changes go here:  if (version < 3) { ... }
     await db.execAsync(`PRAGMA user_version = ${LATEST_VERSION}`);
   });
 }

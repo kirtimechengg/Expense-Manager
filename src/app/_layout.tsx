@@ -13,6 +13,7 @@ import { AppLock } from '@/components/app-lock';
 import { DATABASE_NAME, migrateDatabase } from '@/db/database';
 import { DataProvider, useData } from '@/state/data';
 import { PeriodProvider } from '@/state/period';
+import { SyncProvider } from '@/sync/sync-provider';
 import { useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -22,7 +23,9 @@ export default function RootLayout() {
     <SQLiteProvider databaseName={DATABASE_NAME} onInit={migrateDatabase}>
       <DataProvider>
         <PeriodProvider>
-          <AppNavigator />
+          <SyncProvider>
+            <AppNavigator />
+          </SyncProvider>
         </PeriodProvider>
       </DataProvider>
     </SQLiteProvider>
@@ -60,6 +63,8 @@ function AppNavigator() {
         <Stack.Screen name="budgets" options={{ title: 'Monthly budgets', headerBackTitle: 'Settings' }} />
         <Stack.Screen name="categories" options={{ title: 'Categories', headerBackTitle: 'Settings' }} />
         <Stack.Screen name="data" options={{ title: 'Export & backup', headerBackTitle: 'Settings' }} />
+        <Stack.Screen name="sync" options={{ title: 'Family sync', headerBackTitle: 'Settings' }} />
+        <Stack.Screen name="auth-callback" options={{ headerShown: false }} />
       </Stack>
       </AppLock>
     </ThemeProvider>

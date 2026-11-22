@@ -1,30 +1,37 @@
 /**
- * SETTINGS — appearance, privacy, budgets, categories, export & backup, (coming soon) app lock & sync.
+ * SETTINGS — appearance, privacy, budgets, categories, export & backup, app lock & family sync.
  */
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Platform, Switch, View } from 'react-native';
+import { Switch, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { AppText } from '@/components/text';
 import { Card, ListRow, Segmented } from '@/components/ui';
 import { authenticate, getLockSupport, type LockSupport } from '@/lib/biometrics';
 import { confirm, notify } from '@/lib/confirm';
+import { timeAgo } from '@/lib/dates';
 import type { ThemePref } from '@/lib/types';
 import { useData } from '@/state/data';
 import { usePeriod } from '@/state/period';
+import { useSync } from '@/sync/sync-provider';
 import { space, useTheme } from '@/theme';
 
-function comingSoon(what: string) {
-  const msg = `${what} is planned for a later phase.`;
-  if (Platform.OS === 'web') window.alert(msg);
-  else Alert.alert('Coming soon', msg);
-}
 
 export default function SettingsScreen() {
   const { colors } = useTheme();
   const { prefs, setPref, categories, transactions, loadDemo } = useData();
   const { goToToday } = usePeriod();
+  const { session, household, status } = useSync();
+  const syncSubtitle = !session
+    ? 'Back up & share with your household'
+    : !household
+      ? 'Signed in · set up a household'
+      : status.state === 'error'
+        ? 'Sync problem — tap for details'
+        : status.lastSyncedAt
+          ? `${household.name} · synced ${timeAgo(status.lastSyncedAt)}`
+          : household.name;
 
   return (
     <Screen title="Settings" fab={false}>
@@ -68,7 +75,7 @@ export default function SettingsScreen() {
 
       <Group title="Security & sync">
         <AppLockSettings />
-        <ListRow icon="people" iconColor="#3B82F6" title="Family sync" subtitle="Share with your household (Supabase)" onPress={() => comingSoon('Family sync')} last />
+        <ListRow icon="people" iconColor="#3B82F6" title="Family sync" subtitle={syncSubtitle} onPress={() => router.push('/sync')} last />
       </Group>
 
       {__DEV__ ? (

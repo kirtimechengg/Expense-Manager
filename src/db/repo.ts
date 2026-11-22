@@ -60,7 +60,7 @@ export async function upsertTransaction(db: SQLiteDatabase, input: TransactionIn
   const ts = now();
   if (input.id) {
     await db.runAsync(
-      `UPDATE transactions SET type = ?, amount = ?, category_id = ?, date = ?, note = ?, updated_at = ? WHERE id = ?`,
+      `UPDATE transactions SET type = ?, amount = ?, category_id = ?, date = ?, note = ?, updated_at = ?, synced = 0 WHERE id = ?`,
       input.type, input.amount, input.categoryId, input.date, input.note, ts, input.id,
     );
     return input.id;
@@ -75,7 +75,7 @@ export async function upsertTransaction(db: SQLiteDatabase, input: TransactionIn
 }
 
 export async function deleteTransaction(db: SQLiteDatabase, id: string) {
-  await db.runAsync('UPDATE transactions SET deleted = 1, updated_at = ? WHERE id = ?', now(), id);
+  await db.runAsync('UPDATE transactions SET deleted = 1, updated_at = ?, synced = 0 WHERE id = ?', now(), id);
 }
 
 export type CategoryInput = Pick<Category, 'name' | 'kind' | 'icon' | 'color'> & { id?: string };
@@ -84,12 +84,12 @@ export async function upsertCategory(db: SQLiteDatabase, input: CategoryInput): 
   const ts = now();
   if (input.id) {
     await db.runAsync(
-      'UPDATE categories SET name = ?, kind = ?, icon = ?, color = ?, updated_at = ? WHERE id = ?',
+      'UPDATE categories SET name = ?, kind = ?, icon = ?, color = ?, updated_at = ?, synced = 0 WHERE id = ?',
       input.name, input.kind, input.icon, input.color, ts, input.id,
     );
     // Keep existing transactions consistent with the category's kind.
     await db.runAsync(
-      'UPDATE transactions SET type = ?, updated_at = ? WHERE category_id = ? AND type != ?',
+      'UPDATE transactions SET type = ?, updated_at = ?, synced = 0 WHERE category_id = ? AND type != ?',
       input.kind, ts, input.id, input.kind,
     );
     return input.id;
@@ -105,14 +105,14 @@ export async function upsertCategory(db: SQLiteDatabase, input: CategoryInput): 
 
 /** Hides a category. Its old transactions stay and show as "Uncategorised". */
 export async function deleteCategory(db: SQLiteDatabase, id: string) {
-  await db.runAsync('UPDATE categories SET deleted = 1, updated_at = ? WHERE id = ?', now(), id);
+  await db.runAsync('UPDATE categories SET deleted = 1, updated_at = ?, synced = 0 WHERE id = ?', now(), id);
 }
 
 export async function setBudget(db: SQLiteDatabase, b: Budget) {
   await db.runAsync(
     `INSERT INTO budgets (category_id, month, amount, remark, updated_at) VALUES (?, ?, ?, ?, ?)
      ON CONFLICT (category_id, month) DO UPDATE SET amount = excluded.amount, remark = excluded.remark,
-       updated_at = excluded.updated_at`,
+       updated_at = excluded.updated_at, synced = 0`,
     b.categoryId, b.month, b.amount, b.remark, now(),
   );
 }
@@ -123,7 +123,7 @@ export async function copyBudgets(db: SQLiteDatabase, fromMonth: string, toMonth
     `INSERT INTO budgets (category_id, month, amount, remark, updated_at)
        SELECT category_id, ?, amount, remark, ? FROM budgets WHERE month = ?
      ON CONFLICT (category_id, month) DO UPDATE SET amount = excluded.amount, remark = excluded.remark,
-       updated_at = excluded.updated_at`,
+       updated_at = excluded.updated_at, synced = 0`,
     toMonth, now(), fromMonth,
   );
   return res.changes;

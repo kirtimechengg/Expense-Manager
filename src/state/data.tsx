@@ -9,6 +9,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { loadDemoData } from '@/db/demo';
 import { applyImport } from '@/db/import';
 import * as repo from '@/db/repo';
+import { emitLocalChange } from '@/sync/signals';
 import type { ImportPlan, ImportResult } from '@/lib/import-plan';
 import { budgetKey } from '@/lib/stats';
 import type { Budget, Category, Prefs, Transaction } from '@/lib/types';
@@ -17,6 +18,8 @@ const DEFAULT_PREFS: Prefs = { privacyMode: false, theme: 'system', lockEnabled:
 
 interface DataState {
   ready: boolean;
+  /** Re-read everything from the database (used after a cloud sync). */
+  reload: () => Promise<void>;
   categories: Category[];
   categoryById: Map<string, Category>;
   transactions: Transaction[];
@@ -61,7 +64,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     };
   }, [db]);
 
-  const refresh = useCallback(async () => (await reload())(), [reload]);
+  const reloadNow = useCallback(async () => (await reload())(), [reload]);
+  /** After a local edit: re-read, and tell the sync engine there is something to upload. */
+  const refresh = useCallback(async () => {
+    await reloadNow();
+    emitLocalChange();
+  }, [reloadNow]);
 
   // Initial load when the app starts.
   useEffect(() => {
@@ -81,6 +89,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     );
     return {
       ready,
+      reload: reloadNow,
       categories,
       categoryById,
       transactions,
@@ -126,7 +135,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         await refresh();
       },
     };
-  }, [db, refresh, ready, categories, transactions, budgetList, prefs]);
+  }, [db, refresh, reloadNow, ready, categories, transactions, budgetList, prefs]);
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>;
 }

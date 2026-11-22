@@ -74,7 +74,7 @@ export async function applyImport(db: SQLiteDatabase, plan: ImportPlan): Promise
       if (old) {
         if (t.updatedAt && t.updatedAt > old.updated_at) {
           await db.runAsync(
-            'UPDATE transactions SET type = ?, amount = ?, category_id = ?, date = ?, note = ?, updated_at = ? WHERE id = ?',
+            'UPDATE transactions SET type = ?, amount = ?, category_id = ?, date = ?, note = ?, updated_at = ?, synced = 0 WHERE id = ?',
             type, t.amount, categoryId, t.date, t.note, t.updatedAt, old.id,
           );
           result.transactionsUpdated++;
@@ -107,7 +107,7 @@ export async function applyImport(db: SQLiteDatabase, plan: ImportPlan): Promise
       await db.runAsync(
         `INSERT INTO budgets (category_id, month, amount, remark, updated_at) VALUES (?, ?, ?, ?, ?)
          ON CONFLICT (category_id, month) DO UPDATE SET amount = excluded.amount, remark = excluded.remark,
-           updated_at = excluded.updated_at`,
+           updated_at = excluded.updated_at, synced = 0`,
         categoryId, b.month, b.amount, b.remark, now,
       );
       result.budgetsSaved++;

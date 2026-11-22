@@ -47,6 +47,30 @@ with the phone passcode as a fallback (the app never stores a PIN). Choose wheth
 preview is covered so amounts aren't visible. If you remove your phone's screen lock, the app unlocks
 instead of locking you out.
 
+### Family sync (Supabase)
+Settings → **Family sync**: sign in with your email (magic link or 6-digit code), then **create** a household
+or **join** one with an invite code. Everything syncs automatically: on opening the app, every 30 s while it's open,
+and a moment after each change. The app still works fully offline, and changes upload when you're back online.
+If two phones edit the same item, the most recent edit wins.
+
+**One-time Supabase setup** (project `onpytnvyosfshldlcfxz`). Do these in the Supabase dashboard:
+
+1. **Create the tables:** SQL Editor → New query → paste all of
+   [`supabase/migrations/0001_wallet_sync.sql`](supabase/migrations/0001_wallet_sync.sql) → **Run**.
+2. **Allow the app's sign-in links:** Authentication → URL Configuration → **Redirect URLs** → add:
+   - `wallet://**` (the installed app)
+   - `exp://**` (testing in Expo Go)
+   - `http://localhost:8081/**` (testing in a browser)
+3. **Show a 6-digit code in the email** (so sign-in also works if the link opens on another device):
+   Authentication → Emails → Templates → **Magic Link** → add this line to the message:
+   `<p>Or enter this code in Wallet: <strong>{{ .Token }}</strong></p>`
+4. **Emails to family members:** Supabase's built-in email sender is only for testing. It is heavily
+   rate-limited and may only deliver to your own team's addresses. Before inviting family, set up a free
+   email provider (e.g. Resend or Brevo) under Authentication → Emails → **SMTP Settings**.
+
+The app contains only the **publishable** key, which is designed to be public. Data is protected by Row Level Security:
+only members of a household can read or change its data. Never put the `secret` / `service_role` key in the app.
+
 ### Moving your data from the old Gemini Budget App
 1. In the old app: **Download menu → Backup Data (JSON)**.
 2. Get that file onto your phone (e.g. Google Drive / iCloud / WhatsApp to yourself).
@@ -76,11 +100,15 @@ src/
     categories.tsx          Category list
     budgets.tsx             Monthly budgets
     data.tsx                Export & backup
+    sync.tsx                Family sync (sign in, household, invites)
+    auth-callback.tsx       Where the email sign-in link lands
   components/             ← reusable UI (cards, charts, calendar, buttons…)
   db/                     ← SQLite tables (database.ts), queries (repo.ts), demo data
   lib/                    ← plain logic: money, dates, calculations (stats.ts),
                             backup.ts (JSON), excel.ts, report.ts (PDF), files.ts (share / pick files)
   state/                  ← shared app state (data.tsx, period.tsx)
+  sync/                   ← Supabase client, sync engine, sign-in & household state
+supabase/migrations/      ← database setup SQL (run once in the Supabase dashboard)
   theme/                  ← colours for light & dark mode
 ```
 
@@ -107,7 +135,7 @@ npx eslint src
 - [x] **Phase 4:** Budgets & categories management
 - [x] **Phase 5:** Export PDF / Excel, JSON backup & restore (including import of the old Gemini backup), Excel templates & import
 - [x] **Phase 6:** App lock (Face ID / fingerprint)
-- [ ] **Phase 7:** Supabase login + family sharing (secure household invites, offline sync)
+- [x] **Phase 7:** Supabase login + family sharing (secure household invites, offline sync)
 - [ ] **Phase 8:** Receipt photo attachments (AI scanning is not planned, since it would need a paid API key)
 - [ ] **Phase 9:** App icon & splash, EAS Build → TestFlight / Play Store
 
