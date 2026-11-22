@@ -1,0 +1,13 @@
+<!-- Wallet glyph, drawn on a 1024×1024 canvas, centred. Used for the icon, Android foreground and splash. -->
+<g id="glyph">
+  <!-- card peeking out -->
+  <g transform="rotate(-14 512 400)">
+    <rect x="300" y="250" width="420" height="260" rx="40" fill="#6EE7B7"/>
+    <rect x="300" y="310" width="420" height="44" fill="#34D399"/>
+  </g>
+  <!-- wallet body -->
+  <rect x="212" y="380" width="600" height="420" rx="88" fill="#FFFFFF"/>
+  <!-- clasp -->
+  <rect x="612" y="512" width="236" height="156" rx="56" fill="#E9E5FF"/>
+  <circle cx="690" cy="590" r="30" fill="#5B4FE9"/>
+</g>
